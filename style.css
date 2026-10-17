@@ -1,0 +1,150 @@
+/* Chart room, after orca: ink on paper by day, chalk on slate by night. Red only for hover and focus. */
+:root {
+  --paper: #f1ede3;
+  --paper-2: #e9e3d5;
+  --ink: #1d1c19;
+  --ink-2: #5f594e;
+  --ink-3: #a59e8f;
+  --accent: #c43d26;
+  --shade: var(--ink);   /* night side */
+  --disc: var(--paper);  /* day side of a body */
+  --serif: "Brygada 1918", Georgia, serif;
+  --sans: "Inter", system-ui, sans-serif;
+  color-scheme: light dark;
+}
+/* data-theme on <html> overrides the system setting; without it the system decides */
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #15181b;
+  --paper-2: #1b1f23;
+  --ink: #e5dfd2;
+  --ink-2: #a39d8f;
+  --ink-3: #575b60;
+  --accent: #ff6a4d;
+  --shade: var(--paper);
+  --disc: #c9c2b4;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --paper: #15181b;
+    --paper-2: #1b1f23;
+    --ink: #e5dfd2;
+    --ink-2: #a39d8f;
+    --ink-3: #575b60;
+    --accent: #ff6a4d;
+    --shade: var(--paper);
+    --disc: #c9c2b4;
+  }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; background: var(--paper); color: var(--ink); font: 15px/1.5 var(--sans); }
+a { color: inherit; text-decoration: none; }
+ul { list-style: none; }
+small { color: var(--ink-2); }
+h1 { font: 600 22px/1.2 var(--serif); }
+
+/* Without JS the page is a plain, readable index */
+body:not(.chart) main { max-width: 40rem; margin: 4rem auto; padding: 0 16px; }
+body:not(.chart) .masthead p { font-style: italic; font-family: var(--serif); color: var(--ink-2); }
+body:not(.chart) #system > li { margin-top: 2rem; }
+body:not(.chart) .planet { font: 500 11px var(--sans); letter-spacing: .18em; text-transform: uppercase; color: var(--ink-2); }
+body:not(.chart) .moons li { margin-top: .5rem; }
+body:not(.chart) .moons span { font: 17px var(--serif); }
+body:not(.chart) small { display: block; }
+body:not(.chart) canvas, body:not(.chart) #chart, body:not(.chart) .back, body:not(.chart) .theme { display: none; }
+
+/* Starfield, after orca: main.js tiles and pans it */
+.stars { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.stars circle { fill: var(--ink-2); }
+.stars .far circle { opacity: .35; }
+.stars .near circle { opacity: .6; }
+.stars .tw { animation: twinkle 5s ease-in-out infinite alternate; }
+@keyframes twinkle { to { opacity: .08; } }
+@media (prefers-reduced-motion: reduce) { .stars .tw { animation: none; } }
+
+canvas, #chart { position: fixed; inset: 0; width: 100%; height: 100%; }
+#chart { cursor: default; }
+#chart.pointing { cursor: pointer; }
+
+/* The chart: hairlines that stay 1px at any zoom */
+#chart * { vector-effect: non-scaling-stroke; }
+#chart .orbit { fill: none; stroke: var(--ink-3); stroke-width: 1; }
+#chart .moon-orbit { fill: none; stroke: var(--ink-3); stroke-width: 1; stroke-dasharray: 2 3; opacity: .7; }
+#chart .sun-halo { fill: none; stroke: var(--ink-3); stroke-width: 1; }
+#chart .sun-disc { fill: var(--paper-2); stroke: var(--ink); stroke-width: 1.25; }
+#chart .sun-core { fill: var(--ink); }
+#chart .body .disc { fill: var(--disc); }
+#chart .body .rim { fill: none; stroke: var(--ink); stroke-width: 1.25; transition: stroke .3s; }
+#chart .body .night { fill: url(#night); }
+#chart #night stop { stop-color: var(--shade); }
+#chart .hover > .body .rim, #chart .focused > .body .rim { stroke: var(--accent); }
+/* One leader line at a time: drawn for the hovered moon, on the chart or in the column */
+#chart .rocks polyline { fill: none; stroke: var(--ink-2); stroke-width: 1; opacity: .5; }
+#chart .rocks circle { fill: var(--ink); }
+#chart .leaders polyline { fill: none; stroke: var(--accent); stroke-width: 1; opacity: 0; transition: opacity .2s; }
+#chart .leaders polyline.hot { opacity: 1; }
+
+/* Labels: main.js positions the planet labels each frame */
+.chart main { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+/* A paper halo keeps label text readable where orbit lines pass under it */
+.chart main :is(h1, p, span, small, .back, .planet) { text-shadow: 0 0 3px var(--paper), 0 0 6px var(--paper), 0 0 10px var(--paper); }
+.chart .planet { position: absolute; left: 0; top: 0; translate: -50% 0; will-change: transform; white-space: nowrap; }
+.chart .planet, .chart .moons a, .chart .back, .chart .theme, .chart .social { pointer-events: auto; }
+
+.chart .masthead { position: fixed; top: 16px; left: 16px; }
+.social {
+  margin-left: 6px; padding: 4px 9px; vertical-align: 4px;
+  font: 500 11px var(--sans); letter-spacing: .14em; text-transform: uppercase;
+  color: var(--ink-2); border: 1px solid var(--ink-3); transition: color .2s, border-color .2s;
+}
+.social:first-child { margin-left: 10px; }
+.social:hover { color: var(--accent); border-color: var(--accent); }
+.chart .masthead p { font: italic 14px var(--serif); color: var(--ink-2); }
+
+.chart .planet {
+  padding: 4px 8px; font: 500 11px/1 var(--sans); letter-spacing: .18em; text-transform: uppercase; color: var(--ink-2);
+  transition: opacity .6s, color .2s;
+}
+.chart .planet:hover, .chart .planet.hot { color: var(--accent); }
+.chart.focusing #system > li:not(.focused) > .planet { opacity: .35; }
+.chart .focused > .planet { opacity: 0; pointer-events: none; }
+
+/* Zoomed in: the focused planet's moons become a column, joined to the chart by leader lines */
+.chart .moons {
+  position: absolute; top: 50%; right: clamp(16px, 9vw, 160px); translate: 0 -50%;
+  display: flex; flex-direction: column; gap: 4px;
+  opacity: 0; visibility: hidden; transition: opacity .6s, visibility .6s;
+}
+.chart .focused .moons { opacity: 1; visibility: visible; }
+.chart .moons::before {
+  content: attr(data-title); padding-bottom: 2px; margin-bottom: 8px; border-bottom: 1px solid var(--ink-3);
+  font: 500 11px var(--sans); letter-spacing: .18em; text-transform: uppercase; color: var(--ink-2);
+}
+.chart .moons a { display: block; padding: 10px 14px; margin-left: -14px; transition: background .2s; }
+.chart .moons a:is(:hover, :focus-visible, .hot) { background: var(--paper-2); outline: none; }
+.chart .moons span { font: 22px/1.25 var(--serif); transition: color .2s; }
+.chart .moons small { display: block; font-size: 13px; }
+.chart .moons a:is(:hover, :focus-visible, .hot) span { color: var(--accent); }
+
+.chart .back {
+  position: fixed; top: 76px; left: 16px; font: 500 11px var(--sans); letter-spacing: .18em; text-transform: uppercase; color: var(--ink-2);
+  opacity: 0; visibility: hidden; transition: opacity .6s, visibility .6s;
+}
+.chart .back:hover { color: var(--accent); }
+.chart.focusing .back { opacity: 1; visibility: visible; }
+
+.chart .theme {
+  position: fixed; top: 16px; right: 16px; padding: 5px 10px; cursor: pointer;
+  font: 500 11px var(--sans); letter-spacing: .14em; text-transform: uppercase;
+  color: var(--ink-2); background: none; border: 1px solid var(--ink-3); transition: color .2s, border-color .2s;
+}
+/* Theme switch: main.js animates the new palette in; turn off the default crossfade */
+::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+.chart .theme:hover { color: var(--accent); border-color: var(--accent); }
+
+
+@media (max-width: 640px) {
+  .chart .moons { top: auto; bottom: 48px; left: 16px; right: 16px; translate: none; gap: 10px; }
+}

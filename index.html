@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trace DeLange</title>
+<meta name="description" content="Projects, writing and work by Trace DeLange.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Brygada+1918:ital,wght@0,400;0,600;1,400&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script>
+  // Apply a saved theme before first paint; main.js owns the toggle
+  try { const t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch {}
+</script>
+<script src="main.js" defer></script>
+</head>
+<body>
+<canvas aria-hidden="true"></canvas>
+<svg id="chart" aria-hidden="true"></svg>
+<main>
+  <header class="masthead">
+    <h1>Trace DeLange <a class="social" href="mailto:tracedelange@me.com">Email</a><a class="social" href="https://www.linkedin.com/in/trace-delange">LinkedIn</a><a class="social" href="https://github.com/tracedelange">GitHub</a></h1>
+    <p>Engineer</p>
+  </header>
+
+  <!-- The chart is built from this list: each top-level li is a planet, its links are moons.
+       data-orbit = distance from the sun, data-size = planet radius (chart units). -->
+  <nav aria-label="Site">
+    <ul id="system">
+      <li data-id="projects" data-orbit="17.5" data-size="0.7">
+        <a class="planet" href="#projects">Projects</a>
+        <ul class="moons">
+          <li><a href="#todo"><span>Culture Orbital</span><small>A Culture-style Orbital you can fly around</small></a></li>
+          <li><a href="#todo"><span>Silicon Soup</span><small>Browser MMO, built in spare hours</small></a></li>
+          <li><a href="#todo"><span>Orca</span><small>A map of agent work</small></a></li>
+          <li><a href="#todo"><span>Cover Story</span><small>CLI tool on npm</small></a></li>
+          <li><a href="#todo"><span>Marathon Results</span><small>Portland Marathon chip-time histogram</small></a></li>
+          <li><a href="https://github.com/tracedelange"><span>GitHub</span><small>Everything else</small></a></li>
+        </ul>
+      </li>
+      <li data-id="blog" data-orbit="9" data-size="0.55">
+        <a class="planet" href="#blog">Blog</a>
+        <ul class="moons">
+          <li><a href="#todo"><span>Placeholder post one</span><small>Coming soon</small></a></li>
+          <li><a href="#todo"><span>Placeholder post two</span><small>Coming soon</small></a></li>
+          <li><a href="#todo"><span>All posts</span><small>Archive</small></a></li>
+        </ul>
+      </li>
+      <li data-id="experience" data-orbit="14" data-size="0.8">
+        <a class="planet" href="#experience">Experience</a>
+        <ul class="moons">
+          <li><a href="#todo"><span>Current role</span><small>Placeholder</small></a></li>
+          <li><a href="#todo"><span>Résumé</span><small>PDF</small></a></li>
+          <li><a href="https://www.linkedin.com/in/trace-delange"><span>LinkedIn</span><small>Profile</small></a></li>
+        </ul>
+      </li>
+      <li data-id="contact" data-orbit="6.5" data-size="0.4">
+        <a class="planet" href="#contact">Contact</a>
+        <ul class="moons">
+          <li><a href="mailto:tracedelange@me.com"><span>Email</span><small>tracedelange@me.com</small></a></li>
+          <li><a href="https://www.linkedin.com/in/trace-delange"><span>LinkedIn</span><small>Profile</small></a></li>
+          <li><a href="https://github.com/tracedelange"><span>GitHub</span><small>github.com/tracedelange</small></a></li>
+        </ul>
+      </li>
+      <li data-id="about" data-orbit="3.5" data-size="0.45">
+        <a class="planet" href="#about">About</a>
+        <ul class="moons">
+          <li><a href="#todo"><span>Bio</span><small>Who I am, briefly</small></a></li>
+          <li><a href="#todo"><span>Now</span><small>What I'm working on this month</small></a></li>
+        </ul>
+      </li>
+      <li data-id="reading" data-orbit="11.5" data-size="0.5">
+        <a class="planet" href="#reading">Reading</a>
+        <ul class="moons">
+          <li><a href="#todo"><span>The Culture</span><small>Iain M. Banks, the series behind this site</small></a></li>
+          <li><a href="#todo"><span>Currently reading</span><small>Placeholder</small></a></li>
+          <li><a href="#todo"><span>The shelf</span><small>Everything I've read and liked</small></a></li>
+        </ul>
+      </li>
+    </ul>
+  </nav>
+
+  <a class="back" href="#">← System</a>
+  <button class="theme" type="button" aria-label="Colour theme">Auto</button>
+</main>
+</body>
+</html>
