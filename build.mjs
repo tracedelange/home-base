@@ -57,6 +57,7 @@ rmSync('dist', { recursive: true, force: true });
 mkdirSync('dist/blog', { recursive: true });
 cpSync('src/main.js', 'dist/main.js');
 cpSync('src/style.css', 'dist/style.css');
+for (const f of ['favicon.svg', 'apple-touch-icon.png']) cpSync(`src/${f}`, `dist/${f}`);
 
 // Static pages; "← System" returns to the item's planet
 const template = read('src/page.html');
