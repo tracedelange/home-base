@@ -4,7 +4,7 @@ document.body.classList.add('chart');
 // Angular speed = K / r^1.5 (Kepler's third law), so outer bodies drift slower
 const K_PLANET = 0.25;
 const K_MOON = 0.15;
-const BEZEL = 25;  // radius of the graduated outer ring, in chart units
+const GAP = 0.4;  // clearance between neighbouring planets' outermost moons, in chart units
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const snap = new URLSearchParams(location.search).has('snap'); // testing: skip camera easing
 
@@ -74,10 +74,10 @@ el(world, 'circle', { class: 'sun-core', r: 0.22 });
 const planets = [...document.querySelectorAll('#system > li')].map((li, i) => {
   const p = {
     id: li.dataset.id, li, label: li.querySelector('.planet'),
-    r: +li.dataset.orbit, size: +li.dataset.size, phase: i * 2.4, pos: [0, 0], screen: [0, 0, 0],
+    order: +li.dataset.order, size: +li.dataset.size, phase: i * 2.4, pos: [0, 0], screen: [0, 0, 0],
   };
   li.querySelector('.moons').dataset.title = p.label.textContent;
-  el(world, 'circle', { class: 'orbit', r: p.r });
+  p.orbit = el(world, 'circle', { class: 'orbit' });
   p.g = el(world, 'g');
   p.moons = [...li.querySelectorAll('.moons a')].map((a, j) => {
     const m = { label: a, r: p.size + 0.7 + j * 0.34, size: 0.11 + 0.05 * (j % 3), phase: j * 2.1, pos: [0, 0], screen: [0, 0, 0] };
@@ -92,6 +92,18 @@ const planets = [...document.querySelectorAll('#system > li')].map((li, i) => {
   body(p.g, p.size);
   return p;
 });
+
+// Orbits from the sun outwards: each planet sits one moon-system radius past the last one's, so planets with more
+// moons get more room and no two systems overlap at any point in their rotation
+let edge = 2.2;  // clear of the sun's halo
+for (const p of [...planets].sort((a, b) => a.order - b.order)) {
+  const reach = Math.max(p.size, ...p.moons.map(m => m.r + m.size));
+  p.r = edge + reach;
+  edge = p.r + reach + GAP;
+  p.orbit.setAttribute('r', p.r);
+}
+const BELT = edge + 1.8;     // centre of the stippled belt
+const BEZEL = BELT + 2.7;    // edge of the chart, which the overview fits to the screen
 
 // ---------- belt: stippled ink dots, orbiting on the GPU ----------
 const canvas = document.querySelector('canvas');
@@ -131,7 +143,7 @@ void main() {
   const gauss = () => (Math.random() + Math.random() + Math.random() - 1.5) / 1.5;
   const n = 30000, data = new Float32Array(n * 4);
   for (let i = 0; i < n; i++) {
-    const r = Math.random() < .8 ? 22.3 + gauss() * 1.6 : rand(20.5, BEZEL - 1.2);  // belt, then sparse scatter (clear of Projects' moons)
+    const r = Math.random() < .8 ? BELT + gauss() * 1.6 : rand(BELT - 1.8, BEZEL - 1.2);  // belt, then sparse scatter (clear of Projects' moons)
     data.set([r, rand(0, 6.283), rand(.12, .5), rand(1, 1.8)], i * 4);
   }
   gl.bindVertexArray(gl.createVertexArray());
