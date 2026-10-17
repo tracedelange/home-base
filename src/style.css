@@ -7,6 +7,7 @@
   --ink-3: #a59e8f;
   --accent: #c43d26;
   --shade: var(--ink);   /* night side */
+  --night-max: .9;       /* night shading at the far limb */
   --disc: var(--paper);  /* day side of a body */
   --serif: "Brygada 1918", Georgia, serif;
   --sans: "Inter", system-ui, sans-serif;
@@ -23,6 +24,7 @@
   --ink-3: #575b60;
   --accent: #ff6a4d;
   --shade: var(--paper);
+  --night-max: 1;
   --disc: #c9c2b4;
 }
 @media (prefers-color-scheme: dark) {
@@ -34,6 +36,7 @@
     --ink-3: #575b60;
     --accent: #ff6a4d;
     --shade: var(--paper);
+    --night-max: 1;
     --disc: #c9c2b4;
   }
 }
@@ -53,7 +56,7 @@ body:not(.chart) .planet { font: 500 11px var(--sans); letter-spacing: .18em; te
 body:not(.chart) .moons li { margin-top: .5rem; }
 body:not(.chart) .moons span { font: 17px var(--serif); }
 body:not(.chart) small { display: block; }
-body:not(.chart) canvas, body:not(.chart) #chart, body:not(.chart) .back, body:not(.chart) .theme { display: none; }
+body:not(.chart) canvas, body:not(.chart) #chart, body:not(.chart, .page) .back, body:not(.chart) .theme { display: none; }
 
 /* Starfield, after orca: main.js tiles and pans it */
 .stars { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; }
@@ -69,19 +72,23 @@ canvas, #chart { position: fixed; inset: 0; width: 100%; height: 100%; }
 #chart.pointing { cursor: pointer; }
 
 /* The chart: hairlines that stay 1px at any zoom */
-#chart * { vector-effect: non-scaling-stroke; }
-#chart .orbit { fill: none; stroke: var(--ink-3); stroke-width: 1; }
-#chart .moon-orbit { fill: none; stroke: var(--ink-3); stroke-width: 1; stroke-dasharray: 2 3; opacity: .7; }
-#chart .sun-halo { fill: none; stroke: var(--ink-3); stroke-width: 1; }
-#chart .sun-disc { fill: var(--paper-2); stroke: var(--ink); stroke-width: 1.25; }
+/* --px is one screen pixel in world units, set by main.js each frame (cheaper than vector-effect: non-scaling-stroke) */
+#chart .orbit { fill: none; stroke: var(--ink-3); stroke-width: var(--px); }
+#chart .moon-orbit { fill: none; stroke: var(--ink-3); stroke-width: var(--px); stroke-dasharray: calc(2 * var(--px)) calc(3 * var(--px)); opacity: .7; }
+#chart .sun-halo { fill: none; stroke: var(--ink-3); stroke-width: var(--px); }
+#chart .sun-disc { fill: var(--paper-2); stroke: var(--ink); stroke-width: calc(1.25 * var(--px)); }
 #chart .sun-core { fill: var(--ink); }
+#chart :is(.sun-halo, .sun-disc, .sun-core) { transition: opacity .6s; }
+/* Zoomed in, the sun can sit behind the moon column: fade it so the column reads */
+.chart.focusing #chart :is(.sun-halo, .sun-disc, .sun-core) { opacity: .15; }
 #chart .body .disc { fill: var(--disc); }
-#chart .body .rim { fill: none; stroke: var(--ink); stroke-width: 1.25; transition: stroke .3s; }
+#chart .body .rim { fill: none; stroke: var(--ink); stroke-width: calc(1.25 * var(--px)); transition: stroke .3s; }
 #chart .body .night { fill: url(#night); }
 #chart #night stop { stop-color: var(--shade); }
+#chart #night stop + stop { stop-opacity: var(--night-max); }
 #chart .hover > .body .rim, #chart .focused > .body .rim { stroke: var(--accent); }
 /* One leader line at a time: drawn for the hovered moon, on the chart or in the column */
-#chart .rocks polyline { fill: none; stroke: var(--ink-2); stroke-width: 1; opacity: .5; }
+#chart .rocks polyline { fill: none; stroke: var(--ink-2); stroke-width: var(--px); opacity: .5; }
 #chart .rocks circle { fill: var(--ink); }
 #chart .leaders polyline { fill: none; stroke: var(--accent); stroke-width: 1; opacity: 0; transition: opacity .2s; }
 #chart .leaders polyline.hot { opacity: 1; }
@@ -89,7 +96,7 @@ canvas, #chart { position: fixed; inset: 0; width: 100%; height: 100%; }
 /* Labels: main.js positions the planet labels each frame */
 .chart main { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
 /* A paper halo keeps label text readable where orbit lines pass under it */
-.chart main :is(h1, p, span, small, .back, .planet) { text-shadow: 0 0 3px var(--paper), 0 0 6px var(--paper), 0 0 10px var(--paper); }
+.chart main :is(h1, p, span, small, .back, .planet):not(.surface *) { text-shadow: 0 0 3px var(--paper), 0 0 6px var(--paper), 0 0 10px var(--paper); }
 .chart .planet { position: absolute; left: 0; top: 0; translate: -50% 0; will-change: transform; white-space: nowrap; }
 .chart .planet, .chart .moons a, .chart .back, .chart .theme, .chart .social { pointer-events: auto; }
 
@@ -148,3 +155,51 @@ canvas, #chart { position: fixed; inset: 0; width: 100%; height: 100%; }
 @media (max-width: 640px) {
   .chart .moons { top: auto; bottom: 48px; left: 16px; right: 16px; translate: none; gap: 10px; }
 }
+
+/* ---------- Reading: articles, as static pages and as surfaces revealed by landing on a moon ---------- */
+.page .reading { max-width: 40rem; margin: 0 auto; padding: 96px 16px 80px; }
+.page .reading:has(.board) { max-width: 64rem; }
+.page .back { position: fixed; top: 16px; left: 16px; font: 500 11px var(--sans); letter-spacing: .18em; text-transform: uppercase; color: var(--ink-2); }
+.page .back:hover { color: var(--accent); }
+.reading h1 { margin-bottom: 1.2em; font-size: 36px; }
+.reading p.kicker { margin-bottom: .6em; font: 500 11px var(--sans); letter-spacing: .18em; text-transform: uppercase; color: var(--ink-2); }
+.reading :is(p, ul, ol, blockquote, pre):not(.board *) { margin-bottom: 1.1em; font: 18px/1.65 var(--serif); }
+.reading > :is(ul, ol):not(.list) { padding-left: 1.3em; }
+.reading > ul:not(.list) { list-style: disc; }
+.reading > h2 { margin: 1.8em 0 .5em; font: 600 22px/1.3 var(--serif); }
+.reading p a { text-decoration: underline; text-decoration-color: var(--ink-3); text-underline-offset: 3px; }
+.reading p a:hover { color: var(--accent); text-decoration-color: var(--accent); }
+.reading blockquote { padding-left: 1em; border-left: 2px solid var(--ink-3); font-style: italic; color: var(--ink-2); }
+.reading code { font: 14px ui-monospace, Menlo, monospace; }
+.reading pre { padding: 14px 16px; overflow-x: auto; background: var(--paper-2); }
+
+.reading .list a { display: block; padding: 12px 14px; margin-left: -14px; transition: background .2s; }
+.reading .list a:hover { background: var(--paper-2); }
+.reading .list a:hover span { color: var(--accent); }
+.reading .list span { font: 22px/1.25 var(--serif); }
+.reading .list small { display: block; font-size: 13px; }
+
+/* Reading board: one column per ## heading in content/reading.md */
+.board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.board section { padding: 14px; background: var(--paper-2); }
+.board h2 { display: flex; justify-content: space-between; padding-bottom: 6px; margin-bottom: 12px; border-bottom: 1px solid var(--ink-3); font: 500 11px var(--sans); letter-spacing: .18em; text-transform: uppercase; color: var(--ink-2); }
+.board h2 small { letter-spacing: 0; }
+.board ul { display: grid; gap: 8px; }
+.board li { padding: 10px 12px; background: var(--paper); border: 1px solid var(--ink-3); font: 15px/1.4 var(--sans); color: var(--ink-2); }
+.board li em { display: block; font: 18px/1.3 var(--serif); color: var(--ink); }
+@media (max-width: 720px) { .board { grid-template-columns: 1fr; } }
+.reading p.updated { font: italic 15px var(--serif); color: var(--ink-3); }
+
+/* Surfaces: landing on a moon fills the screen with its day side, then its article fades in on top */
+body:not(.chart) #surfaces { display: none; }
+.chart .surface {
+  position: fixed; inset: 0; overflow-y: auto; pointer-events: auto;
+  padding: 120px max(16px, calc(50% - 20rem)) 80px; background: var(--paper);
+  opacity: 0; visibility: hidden; transition: opacity .4s, visibility .4s;
+}
+.chart .surface:has(.board) { padding-inline: max(16px, calc(50% - 32rem)); }
+.chart .surface.on { opacity: 1; visibility: visible; transition-delay: .8s; }
+.chart.landed .masthead, .chart.landed .focused .moons, .chart.landed #system .planet { opacity: 0; visibility: hidden; }
+.chart .masthead { transition: opacity .4s, visibility .4s; }
+.chart.rest :is(#chart, canvas, .stars) { visibility: hidden; }
+#chart.deep .moon-orbit { display: none; }

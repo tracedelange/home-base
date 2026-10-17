@@ -61,7 +61,8 @@ const chart = document.getElementById('chart');
 // Night-side shading, shared by every body: clear on the sun side, fading to ink on the far limb (+x)
 const night = el(el(chart, 'defs'), 'linearGradient', { id: 'night' });
 el(night, 'stop', { offset: 0.3, 'stop-opacity': 0 });
-el(night, 'stop', { offset: 1, 'stop-opacity': 0.9 });
+el(night, 'stop', { offset: 0.85 });  // these two take --night-max from style.css
+el(night, 'stop', { offset: 1 });
 const world = el(chart, 'g');
 const leaders = el(chart, 'g', { class: 'leaders' });
 
@@ -176,24 +177,44 @@ themeBtn.addEventListener('click', () => {
 
 // ---------- camera: world point `center` is drawn at screen point `anchor`, `scale` px per unit ----------
 const cam = { center: [0, 0], anchor: [innerWidth / 2, innerHeight / 2], logScale: Math.log(4) };
-let focus = null, shown = null, hovered = null, focusAmt = 0, t = 0, timeScale = 1, last = performance.now();
+let focus = null, shown = null, landed = null, hovered = null, focusAmt = 0, t = 0, timeScale = 1, last = performance.now();
 let W = 0, H = 0, dpr = 1, scale = 1, overviewScale = 1;
 
 const toScreen = p => [(p[0] - cam.center[0]) * scale + cam.anchor[0], (p[1] - cam.center[1]) * scale + cam.anchor[1]];
 
-function setFocus(id) {
-  const p = planets.find(p => p.id === id) || null;
-  if (id && !p) return; // placeholder hashes like #todo are not planets
+// Routes: #planet focuses a planet; #planet/item lands on the moon whose link has that data-route
+const back = document.querySelector('.back');
+const surfaces = [...document.querySelectorAll('.surface')];
+function setFocus(route) {
+  const p = planets.find(p => p.id === route.split('/')[0]) || null;
+  if (route && !p) return; // placeholder hashes like #todo are not planets
   focus = p;
   if (p) shown = p;
+  landed = p?.moons.find(m => m.label.dataset.route === route) || null;
   document.body.classList.toggle('focusing', !!p);
+  document.body.classList.toggle('landed', !!landed);
+  document.body.classList.remove('rest');
   for (const q of planets) {
     q.li.classList.toggle('focused', q === p);
     q.g.classList.toggle('focused', q === p);
   }
+  for (const s of surfaces) {
+    const on = !!landed && s.dataset.route === route;
+    if (on && !s.classList.contains('on')) s.scrollTop = 0;
+    s.classList.toggle('on', on);
+  }
+  back.textContent = `← ${landed ? p.label.textContent : 'System'}`;
+  back.href = landed ? `#${p.id}` : '#';
 }
+// Once an article has faded in it covers the chart, so the chart stops drawing until you leave
+for (const s of surfaces) s.addEventListener('transitionend', e => {
+  if (e.target === s && e.propertyName === 'opacity' && s.classList.contains('on')) document.body.classList.add('rest');
+});
 addEventListener('hashchange', () => setFocus(location.hash.slice(1)));
-addEventListener('keydown', e => { if (e.key === 'Escape' && focus) location.hash = ''; });
+addEventListener('keydown', e => { if (e.key === 'Escape' && focus) location.hash = landed ? focus.id : ''; });
+// Moon links point at static pages for no-JS visitors; here they land on the moon instead
+for (const a of document.querySelectorAll('a[data-route]'))
+  a.addEventListener('click', e => { e.preventDefault(); location.hash = a.dataset.route; });
 setFocus(location.hash.slice(1));
 
 // Nearest body under the pointer: the focused planet's moons first, then planets
@@ -281,12 +302,26 @@ function updateCamera(ease) {
     anchor = wide ? [W * 0.36, H / 2] : [W / 2, H * 0.3];
     goalScale = (wide ? Math.min(W * 0.6, H) : Math.min(W, H * 0.55)) / 2 * 0.85 / reach;
   }
-  for (let k = 0; k < 2; k++) {
-    cam.center[k] += (goal[k] - cam.center[k]) * ease;
-    cam.anchor[k] += (anchor[k] - cam.anchor[k]) * ease;
+  if (landed) {
+    // Dive into the part of the moon that matches the page: in light mode the day side, where the night shading
+    // hasn't started (sunward of 0.4r); in dark mode the far night side, which is solid slate (beyond 0.7r).
+    // Zoom until that band covers the screen.
+    const dark = ink[0] > 0.5;
+    const [at, half] = dark ? [0.85, 0.15] : [-0.7, 0.3];
+    const m = [focus.pos[0] + landed.pos[0], focus.pos[1] + landed.pos[1]], k = 1 + at * landed.size / Math.hypot(...m);
+    goal = [m[0] * k, m[1] * k];
+    anchor = [W / 2, H / 2];
+    goalScale = Math.hypot(W, H) / 2 / (half * landed.size);
   }
+  const before = scale;
   cam.logScale += (Math.log(goalScale) - cam.logScale) * ease;
   scale = Math.exp(cam.logScale);
+  // Zooming in, ease the goal's position on screen rather than in the world, so it can't overshoot at high zoom
+  const keep = (1 - ease) * Math.min(1, before / scale);
+  for (let k = 0; k < 2; k++) {
+    cam.center[k] = goal[k] - (goal[k] - cam.center[k]) * keep;
+    cam.anchor[k] += (anchor[k] - cam.anchor[k]) * ease;
+  }
 }
 
 const deg = p => Math.atan2(p[1], p[0]) * 180 / Math.PI;
@@ -294,10 +329,11 @@ const deg = p => Math.atan2(p[1], p[0]) * 180 / Math.PI;
 function frame(now) {
   const dt = Math.min((now - last) / 1000, 0.05);
   last = now;
+  if (document.body.classList.contains('rest')) return requestAnimationFrame(frame);
   resize();
   const ease = snap ? 1 : 1 - Math.exp(-dt * 2.5);
   // Time slows while zoomed in so the chart holds still while you read
-  timeScale += ((focus ? 0.1 : 1) * (reduceMotion ? 0.2 : 1) - timeScale) * ease;
+  timeScale += ((landed ? 0 : focus ? 0.1 : 1) * (reduceMotion ? 0.2 : 1) - timeScale) * ease;
   focusAmt += ((focus ? 1 : 0) - focusAmt) * ease;
   t += dt * timeScale;
 
@@ -310,8 +346,10 @@ function frame(now) {
     }
   }
   updateCamera(ease);
+  chart.classList.toggle('deep', scale > 3000);  // diving into a moon: its dashed rings are off-screen anyway
 
   world.setAttribute('transform', `translate(${cam.anchor[0]} ${cam.anchor[1]}) scale(${scale}) translate(${-cam.center[0]} ${-cam.center[1]})`);
+  world.style.setProperty('--px', `${1 / scale}px`);
   for (const p of planets) {
     p.g.setAttribute('transform', `translate(${p.pos[0]} ${p.pos[1]})`);
     p.g.lastChild.setAttribute('transform', `rotate(${deg(p.pos)})`);
@@ -327,7 +365,7 @@ function frame(now) {
     const off = k => (((cam.anchor[k] - cam.center[k] * scale) * l.speed % TILE) + TILE) % TILE - TILE;
     l.g.setAttribute('transform', `translate(${off(0)} ${off(1)})`);
   }
-  leaders.style.opacity = focusAmt;
+  leaders.style.opacity = landed ? 0 : focusAmt;
   if (shown) for (const m of shown.moons) {
     const [x, y] = toScreen([shown.pos[0] + m.pos[0], shown.pos[1] + m.pos[1]]);
     m.screen = [x, y, m.size * scale];

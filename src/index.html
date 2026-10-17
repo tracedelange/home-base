@@ -25,7 +25,8 @@
   </header>
 
   <!-- The chart is built from this list: each top-level li is a planet, its links are moons.
-       data-orbit = distance from the sun, data-size = planet radius (chart units). -->
+       data-orbit = distance from the sun, data-size = planet radius (chart units).
+       build.mjs fills the blog, reading, about and surfaces markers from content/. -->
   <nav aria-label="Site">
     <ul id="system">
       <li data-id="projects" data-orbit="17.5" data-size="0.7">
@@ -39,15 +40,13 @@
           <li><a href="https://github.com/tracedelange"><span>GitHub</span><small>Everything else</small></a></li>
         </ul>
       </li>
-      <li data-id="blog" data-orbit="9" data-size="0.55">
+      <li data-id="blog" data-orbit="10" data-size="0.55">
         <a class="planet" href="#blog">Blog</a>
         <ul class="moons">
-          <li><a href="#todo"><span>Placeholder post one</span><small>Coming soon</small></a></li>
-          <li><a href="#todo"><span>Placeholder post two</span><small>Coming soon</small></a></li>
-          <li><a href="#todo"><span>All posts</span><small>Archive</small></a></li>
+          <!-- blog -->
         </ul>
       </li>
-      <li data-id="experience" data-orbit="14" data-size="0.8">
+      <li data-id="experience" data-orbit="15" data-size="0.8">
         <a class="planet" href="#experience">Experience</a>
         <ul class="moons">
           <li><a href="#todo"><span>Current role</span><small>Placeholder</small></a></li>
@@ -55,7 +54,7 @@
           <li><a href="https://www.linkedin.com/in/trace-delange"><span>LinkedIn</span><small>Profile</small></a></li>
         </ul>
       </li>
-      <li data-id="contact" data-orbit="6.5" data-size="0.4">
+      <li data-id="contact" data-orbit="7.5" data-size="0.4">
         <a class="planet" href="#contact">Contact</a>
         <ul class="moons">
           <li><a href="mailto:tracedelange@me.com"><span>Email</span><small>tracedelange@me.com</small></a></li>
@@ -63,23 +62,25 @@
           <li><a href="https://github.com/tracedelange"><span>GitHub</span><small>github.com/tracedelange</small></a></li>
         </ul>
       </li>
-      <li data-id="about" data-orbit="3.5" data-size="0.45">
+      <li data-id="about" data-orbit="5" data-size="0.45">
         <a class="planet" href="#about">About</a>
         <ul class="moons">
-          <li><a href="#todo"><span>Bio</span><small>Who I am, briefly</small></a></li>
-          <li><a href="#todo"><span>Now</span><small>What I'm working on this month</small></a></li>
+          <!-- about -->
         </ul>
       </li>
-      <li data-id="reading" data-orbit="11.5" data-size="0.5">
+      <li data-id="reading" data-orbit="12.5" data-size="0.5">
         <a class="planet" href="#reading">Reading</a>
         <ul class="moons">
-          <li><a href="#todo"><span>The Culture</span><small>Iain M. Banks, the series behind this site</small></a></li>
-          <li><a href="#todo"><span>Currently reading</span><small>Placeholder</small></a></li>
-          <li><a href="#todo"><span>The shelf</span><small>Everything I've read and liked</small></a></li>
+          <!-- reading -->
         </ul>
       </li>
     </ul>
   </nav>
+
+  <!-- Landing on a moon reveals its article -->
+  <div id="surfaces">
+    <!-- surfaces -->
+  </div>
 
   <a class="back" href="#">← System</a>
   <button class="theme" type="button" aria-label="Colour theme">Auto</button>
