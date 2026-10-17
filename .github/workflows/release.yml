@@ -1,0 +1,36 @@
+# Every push to main updates the release PR. Merging that PR tags a release, which builds and deploys to Firebase Hosting.
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          release-type: node
+
+      - if: steps.release.outputs.release_created
+        uses: actions/checkout@v4
+      - if: steps.release.outputs.release_created
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - if: steps.release.outputs.release_created
+        run: npm ci && npm run build
+      - if: steps.release.outputs.release_created
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          channelId: live
+          projectId: tracedelange-site
