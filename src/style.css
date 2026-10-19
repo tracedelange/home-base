@@ -158,12 +158,11 @@ canvas, #chart { position: fixed; inset: 0; width: 100%; height: 100%; }
 
 /* ---------- Reading: articles, as static pages and as surfaces revealed by landing on a moon ---------- */
 .page .reading { max-width: 40rem; margin: 0 auto; padding: 96px 16px 80px; }
-.page .reading:has(.board) { max-width: 64rem; }
 .page .back { position: fixed; top: 16px; left: 16px; font: 500 11px var(--sans); letter-spacing: .18em; text-transform: uppercase; color: var(--ink-2); }
 .page .back:hover { color: var(--accent); }
 .reading h1 { margin-bottom: 1.2em; font-size: 36px; }
 .reading p.kicker { margin-bottom: .6em; font: 500 11px var(--sans); letter-spacing: .18em; text-transform: uppercase; color: var(--ink-2); }
-.reading :is(p, ul, ol, blockquote, pre):not(.board *) { margin-bottom: 1.1em; font: 18px/1.65 var(--serif); }
+.reading :is(p, ul, ol, blockquote, pre) { margin-bottom: 1.1em; font: 18px/1.65 var(--serif); }
 .reading > :is(ul, ol):not(.list) { padding-left: 1.3em; }
 .reading > ul:not(.list) { list-style: disc; }
 .reading > h2 { margin: 1.8em 0 .5em; font: 600 22px/1.3 var(--serif); }
@@ -179,15 +178,6 @@ canvas, #chart { position: fixed; inset: 0; width: 100%; height: 100%; }
 .reading .list span { font: 22px/1.25 var(--serif); }
 .reading .list small { display: block; font-size: 13px; }
 
-/* Reading board: one column per ## heading in content/reading.md */
-.board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-.board section { padding: 14px; background: var(--paper-2); }
-.board h2 { display: flex; justify-content: space-between; padding-bottom: 6px; margin-bottom: 12px; border-bottom: 1px solid var(--ink-3); font: 500 11px var(--sans); letter-spacing: .18em; text-transform: uppercase; color: var(--ink-2); }
-.board h2 small { letter-spacing: 0; }
-.board ul { display: grid; gap: 8px; }
-.board li { padding: 10px 12px; background: var(--paper); border: 1px solid var(--ink-3); font: 15px/1.4 var(--sans); color: var(--ink-2); }
-.board li em { display: block; font: 18px/1.3 var(--serif); color: var(--ink); }
-@media (max-width: 720px) { .board { grid-template-columns: 1fr; } }
 .reading p.updated { font: italic 15px var(--serif); color: var(--ink-3); }
 
 /* Surfaces: landing on a moon fills the screen with its day side, then its article fades in on top */
@@ -197,7 +187,6 @@ body:not(.chart) #surfaces { display: none; }
   padding: 120px max(16px, calc(50% - 20rem)) 80px; background: var(--paper);
   opacity: 0; visibility: hidden; transition: opacity .4s, visibility .4s;
 }
-.chart .surface:has(.board) { padding-inline: max(16px, calc(50% - 32rem)); }
 .chart .surface.on { opacity: 1; visibility: visible; transition-delay: .8s; }
 .chart.landed .masthead, .chart.landed .focused .moons, .chart.landed #system .planet { opacity: 0; visibility: hidden; }
 .chart .masthead { transition: opacity .4s, visibility .4s; }

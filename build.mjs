@@ -31,20 +31,16 @@ add('blog/all', 'blog/index.html', 'All posts', `${posts.length} posts`, href =>
   `<h1>Blog</h1><ul class="list">${posts.map(p =>
     `<li><a href="${href(`blog/${p.slug}`)}"><span>${esc(p.title)}</span><small>${date(p.date)} · ${esc(p.description)}</small></a></li>`).join('')}</ul>`);
 
-// Reading: each ## heading is a board column; each book a list item, "*Title* — Author"
+// Reading: a plain Markdown page. Books listed under "## Currently reading" ("- *Title* — Author") also become moons.
 const reading = parse('content/reading.md');
-const columns = [];
-for (const t of marked.lexer(reading.body)) {
-  if (t.type === 'heading' && t.depth === 2) columns.push({ title: t.text, id: t.text.toLowerCase().replace(/\W+/g, '-'), tokens: [] });
-  else columns.at(-1)?.tokens.push(t);
-}
-const books = c => c.tokens.filter(t => t.type === 'list').flatMap(t => t.items).map(i => {
+const tokens = marked.lexer(reading.body);
+const at = tokens.findIndex(t => t.type === 'heading' && t.text === 'Currently reading');
+const current = tokens.slice(at + 1).find(t => t.type === 'list')?.items.map(i => {
   const [title, author = ''] = i.text.split(' — ');
   return { title: esc(title.replace(/\*/g, '')), author: esc(author) };
-});
-add('reading/board', 'reading.html', `${reading.year} board`, 'Want to read, reading, read', () =>
-  `<h1>Reading in ${reading.year}</h1><div class="board">${columns.map(c =>
-    `<section><h2>${esc(c.title)} <small>${books(c).length}</small></h2><ul>${books(c).map(b => `<li><em>${b.title}</em>${b.author}</li>`).join('')}</ul></section>`).join('')}</div>`);
+}) ?? [];
+add('reading/list', 'reading.html', `${reading.year} list`, 'Reading now, next and this year', () =>
+  `<h1>Reading in ${reading.year}</h1>${marked.parse(reading.body)}`);
 
 // About
 const bio = parse('content/bio.md'), now = parse('content/now.md');
@@ -71,10 +67,9 @@ for (const i of items) {
 // Moons link to the static page; main.js reads data-route and lands on the moon instead
 const moon = (i, title = esc(i.title), desc = esc(i.desc)) =>
   `<li><a href="${i.file}" data-route="${i.route}"><span>${title}</span><small>${desc}</small></a></li>`;
-const current = columns.find(c => c.id === 'reading');
 const moons = {
   blog: posts.slice(0, 2).map(p => moon(find(`blog/${p.slug}`))).join('') + moon(find('blog/all')),
-  reading: books(current).map(b => moon(find('reading/board'), b.title, b.author)).join('') + moon(find('reading/board')),
+  reading: current.map(b => moon(find('reading/list'), b.title, b.author)).join('') + moon(find('reading/list')),
   about: moon(find('about/bio')) + moon(find('about/now')),
 };
 const surfaces = items.map(i => `<article class="surface reading" data-route="${i.route}">${i.body(r => `#${r}`)}</article>`).join('\n');
