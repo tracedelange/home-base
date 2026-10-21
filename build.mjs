@@ -36,7 +36,7 @@ const reading = parse('content/reading.md');
 const tokens = marked.lexer(reading.body);
 const at = tokens.findIndex(t => t.type === 'heading' && t.text === 'Currently reading');
 const current = tokens.slice(at + 1).find(t => t.type === 'list')?.items.map(i => {
-  const [title, author = ''] = i.text.split(' — ');
+  const [title, author = ''] = i.text.split(/ [—–-] /);
   return { title: esc(title.replace(/\*/g, '')), author: esc(author) };
 }) ?? [];
 add('reading/list', 'reading.html', `${reading.year} list`, 'Reading now, next and this year', () =>
