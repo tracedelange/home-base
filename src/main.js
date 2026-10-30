@@ -1,5 +1,7 @@
 (() => {
-document.body.classList.add('chart');
+document.body.classList.add('chart', 'boot');
+// Without this, everything would animate in from its no-JS state on load
+requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.remove('boot')));
 
 // Angular speed = K / r^1.5 (Kepler's third law), so outer bodies drift slower
 const K_PLANET = 0.25;
@@ -14,14 +16,6 @@ function el(parent, tag, attrs = {}) {
   const e = parent.appendChild(document.createElementNS(SVG, tag));
   for (const k in attrs) e.setAttribute(k, attrs[k]);
   return e;
-}
-// A plain disc that fades to ink on its night side; the group is rotated so the night side faces away from the sun
-function body(parent, r) {
-  const g = el(parent, 'g', { class: 'body' });
-  el(g, 'circle', { class: 'disc', r });
-  el(g, 'circle', { class: 'night', r });
-  el(g, 'circle', { class: 'rim', r });
-  return g;
 }
 
 // ---------- starfield, after orca: two tiled layers that pan at a fraction of the camera's speed ----------
@@ -56,40 +50,23 @@ function drawStars() {
 drawStars();
 addEventListener('resize', drawStars);
 
-// ---------- chart, built from the nav markup ----------
+// ---------- chart, built from the nav markup and drawn on a 2D canvas each frame ----------
+// (A canvas, not SVG: moving SVG made the browser re-rasterise the whole chart every frame, which phones can't keep up with)
 const chart = document.getElementById('chart');
-// Night-side shading, shared by every body: clear on the sun side, fading to ink on the far limb (+x)
-const night = el(el(chart, 'defs'), 'linearGradient', { id: 'night' });
-el(night, 'stop', { offset: 0.3, 'stop-opacity': 0 });
-el(night, 'stop', { offset: 0.85 });  // these two take --night-max from style.css
-el(night, 'stop', { offset: 1 });
-const world = el(chart, 'g');
-const leaders = el(chart, 'g', { class: 'leaders' });
-
-// The sun as the astronomical mark ☉, inside a faint halo ring
-el(world, 'circle', { class: 'sun-halo', r: 1.6 });
-el(world, 'circle', { class: 'sun-disc', r: 1.1 });
-el(world, 'circle', { class: 'sun-core', r: 0.22 });
+const ctx = chart.getContext('2d');
 
 const planets = [...document.querySelectorAll('#system > li')].map((li, i) => {
   const p = {
     id: li.dataset.id, li, label: li.querySelector('.planet'),
-    order: +li.dataset.order, size: +li.dataset.size, phase: i * 2.4, pos: [0, 0], screen: [0, 0, 0],
+    order: +li.dataset.order, size: +li.dataset.size, phase: i * 2.4, pos: [0, 0], screen: [0, 0, 0], w: 0,
   };
   li.querySelector('.moons').dataset.title = p.label.textContent;
-  p.orbit = el(world, 'circle', { class: 'orbit' });
-  p.g = el(world, 'g');
   p.moons = [...li.querySelectorAll('.moons a')].map((a, j) => {
     const m = { label: a, r: p.size + 0.7 + j * 0.34, size: 0.11 + 0.05 * (j % 3), phase: j * 2.1, pos: [0, 0], screen: [0, 0, 0] };
-    el(p.g, 'circle', { class: 'moon-orbit', r: m.r });
-    m.g = el(p.g, 'g');
-    body(m.g, m.size);
-    m.line = el(leaders, 'polyline');
     for (const [ev, on] of [['pointerenter', 1], ['pointerleave', 0], ['focus', 1], ['blur', 0]])
       a.addEventListener(ev, () => setHover(on ? m : null));
     return m;
   });
-  body(p.g, p.size);
   return p;
 });
 
@@ -100,13 +77,13 @@ for (const p of [...planets].sort((a, b) => a.order - b.order)) {
   const reach = Math.max(p.size, ...p.moons.map(m => m.r + m.size));
   p.r = edge + reach;
   edge = p.r + reach + GAP;
-  p.orbit.setAttribute('r', p.r);
 }
+const REACH = edge - GAP;    // outer edge of the outermost moon system
 const BELT = edge + 1.8;     // centre of the stippled belt
 const BEZEL = BELT + 2.7;    // edge of the chart, which the overview fits to the screen
 
 // ---------- belt: stippled ink dots, orbiting on the GPU ----------
-const canvas = document.querySelector('canvas');
+const canvas = document.querySelector('canvas:not(#chart)');
 const gl = canvas.getContext('webgl2', { premultipliedAlpha: true, antialias: false });
 let belt = null;
 if (gl) {
@@ -156,11 +133,15 @@ void main() {
   gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
   belt = { u, n };
 }
-// Belt ink follows the theme tokens
-let ink = [0, 0, 0];
+// Chart and belt colours follow the theme tokens
+let ink = [0, 0, 0], col = {};
 const readInk = () => {
-  const h = getComputedStyle(document.documentElement).getPropertyValue('--ink').trim();
-  ink = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255);
+  const css = getComputedStyle(document.documentElement);
+  for (const k of ['paper-2', 'ink', 'ink-2', 'ink-3', 'accent', 'shade', 'disc', 'night-max']) col[k] = css.getPropertyValue('--' + k).trim();
+  ink = [1, 3, 5].map(i => parseInt(col.ink.slice(i, i + 2), 16) / 255);
+  // Night side: clear on the sun side, fading to the shade colour on the far limb
+  const a = Math.round(+col['night-max'] * 255).toString(16).padStart(2, '0');
+  col.night = [[0.3, col.shade + '00'], [0.85, col.shade + a], [1, col.shade + a]];
 };
 readInk();
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', readInk);
@@ -191,6 +172,13 @@ themeBtn.addEventListener('click', () => {
 const cam = { center: [0, 0], anchor: [innerWidth / 2, innerHeight / 2], logScale: Math.log(4) };
 let focus = null, shown = null, landed = null, hovered = null, focusAmt = 0, t = 0, timeScale = 1, last = performance.now();
 let W = 0, H = 0, dpr = 1, scale = 1, overviewScale = 1;
+// Phones stack the moon list under the planet; listTop is the list's top edge, so the planet can sit above it
+const phone = matchMedia('(max-width: 640px)');
+let listTop = 0;
+const measureList = () => { listTop = focus ? focus.li.querySelector('.moons').getBoundingClientRect().top : 0; };
+addEventListener('resize', measureList);
+// Label widths, for keeping planet labels on screen; fonts arriving late change them
+document.fonts.ready.then(() => { for (const p of planets) p.w = 0; measureList(); });
 
 const toScreen = p => [(p[0] - cam.center[0]) * scale + cam.anchor[0], (p[1] - cam.center[1]) * scale + cam.anchor[1]];
 
@@ -208,7 +196,6 @@ function setFocus(route) {
   document.body.classList.remove('rest');
   for (const q of planets) {
     q.li.classList.toggle('focused', q === p);
-    q.g.classList.toggle('focused', q === p);
   }
   for (const s of surfaces) {
     const on = !!landed && s.dataset.route === route;
@@ -217,6 +204,7 @@ function setFocus(route) {
   }
   back.textContent = `← ${landed ? p.label.textContent : 'System'}`;
   back.href = landed ? `#${p.id}` : '#';
+  measureList();
 }
 // Once an article has faded in it covers the chart, so the chart stops drawing until you leave
 for (const s of surfaces) s.addEventListener('transitionend', e => {
@@ -241,12 +229,8 @@ function pick(x, y) {
 // Hover links a body on the chart with its label, in both directions
 function setHover(b) {
   if (b === hovered) return;
-  for (const [x, on] of [[hovered, false], [b, true]]) {
-    if (!x) continue;
-    x.g.classList.toggle('hover', on);
-    x.label.classList.toggle('hot', on);
-    x.line?.classList.toggle('hot', on);
-  }
+  hovered?.label.classList.remove('hot');
+  b?.label.classList.add('hot');
   hovered = b;
   chart.classList.toggle('pointing', !!b);
 }
@@ -262,7 +246,6 @@ chart.addEventListener('click', e => {
 // ---------- asteroids: click empty space to throw one; the sun's gravity bends its path ----------
 const GM = 100;   // far stronger than the planets feel, so a rock crosses the chart in seconds
 const TRAIL = 120; // positions kept for the tail
-const rockLayer = el(world, 'g', { class: 'rocks' });
 const rocks = [];
 function launch(x, y) {
   const p = [(x - cam.anchor[0]) / scale + cam.center[0], (y - cam.anchor[1]) / scale + cam.center[1]];
@@ -270,9 +253,8 @@ function launch(x, y) {
   if (r < 2) return;
   // Between a falling and an escaping orbit, moving the same way as the planets
   const v = Math.sqrt(GM / r) * (0.5 + Math.random() * 0.9);
-  if (rocks.length >= 12) rocks.shift().g.remove();
-  const g = el(rockLayer, 'g');
-  rocks.push({ p, v: [-p[1] / r * v, p[0] / r * v], trail: [], g, tail: el(g, 'polyline'), dot: el(g, 'circle', { r: 0.16 }) });
+  if (rocks.length >= 12) rocks.shift();
+  rocks.push({ p, v: [-p[1] / r * v, p[0] / r * v], trail: [] });
 }
 function stepRocks(dt) {
   for (let i = rocks.length; i--;) {
@@ -285,12 +267,9 @@ function stepRocks(dt) {
     }
     const r = Math.hypot(...k.p);
     // Gone once it falls into the sun or flies well past the belt
-    if (r < 1.1 || r > BEZEL * 2) { k.g.remove(); rocks.splice(i, 1); continue; }
-    k.trail.push(`${k.p[0]},${k.p[1]}`);
+    if (r < 1.1 || r > BEZEL * 2) { rocks.splice(i, 1); continue; }
+    k.trail.push([...k.p]);
     if (k.trail.length > TRAIL) k.trail.shift();
-    k.tail.setAttribute('points', k.trail.join(' '));
-    k.dot.setAttribute('cx', k.p[0]);
-    k.dot.setAttribute('cy', k.p[1]);
   }
 }
 
@@ -298,21 +277,28 @@ function stepRocks(dt) {
 function resize() {
   dpr = Math.min(devicePixelRatio, 2);
   W = innerWidth; H = innerHeight;
-  if (canvas.width !== Math.round(W * dpr) || canvas.height !== Math.round(H * dpr)) {
-    canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+  for (const c of [canvas, chart]) if (c.width !== Math.round(W * dpr) || c.height !== Math.round(H * dpr)) {
+    c.width = Math.round(W * dpr); c.height = Math.round(H * dpr);
   }
-  overviewScale = Math.min(W, H) / 2 * 0.94 / BEZEL;
+  // Portrait screens fit the planets' moon systems to the width and let the belt run off the sides
+  overviewScale = W < H ? W / 2 / (REACH + 0.6) : Math.min(W, H) / 2 * 0.94 / BEZEL;
 }
 
 function updateCamera(ease) {
   let goal = [0, 0], anchor = [W / 2, H / 2], goalScale = overviewScale;
   if (focus) {
     // Wide screens: planet left of centre, moon column right. Tall screens: planet high, column below.
+    // Phones: planet in the space between the back link and the moon list.
     const wide = W > H;
     const reach = focus.moons.at(-1).r + 0.6;
     goal = focus.pos;
     anchor = wide ? [W * 0.36, H / 2] : [W / 2, H * 0.3];
     goalScale = (wide ? Math.min(W * 0.6, H) : Math.min(W, H * 0.55)) / 2 * 0.85 / reach;
+    if (phone.matches) {
+      const top = 100;
+      anchor = [W / 2, (top + listTop) / 2];
+      goalScale = Math.min(W - 32, listTop - top - 16) / 2 / reach;
+    }
   }
   if (landed) {
     // Dive into the part of the moon that matches the page: in light mode the day side, where the night shading
@@ -336,7 +322,67 @@ function updateCamera(ease) {
   }
 }
 
-const deg = p => Math.atan2(p[1], p[0]) * 180 / Math.PI;
+// ---------- drawing, in screen pixels ----------
+const half = () => Math.hypot(W, H) / 2;
+// A ring is worth stroking only if it crosses the screen; at deep zoom most orbits are far off it
+const ringOnScreen = (x, y, R) => Math.abs(Math.hypot(x - W / 2, y - H / 2) - R) < half();
+function ring(x, y, R, stroke, width = 1) {
+  if (!ringOnScreen(x, y, R)) return;
+  ctx.beginPath(); ctx.arc(x, y, R, 0, 7);
+  ctx.strokeStyle = stroke; ctx.lineWidth = width; ctx.stroke();
+}
+// A plain disc that fades to ink on its night side, which faces away from the sun
+function drawBody(w, r, hot) {
+  const [x, y] = toScreen(w), R = r * scale;
+  if (Math.hypot(x - W / 2, y - H / 2) > R + half()) return;
+  ctx.beginPath(); ctx.arc(x, y, R, 0, 7);
+  ctx.fillStyle = col.disc; ctx.fill();
+  const d = Math.hypot(...w), ux = w[0] / d, uy = w[1] / d;
+  const g = ctx.createLinearGradient(x - ux * R, y - uy * R, x + ux * R, y + uy * R);
+  for (const [o, c] of col.night) g.addColorStop(o, c);
+  ctx.fillStyle = g; ctx.fill();
+  ctx.strokeStyle = hot ? col.accent : col.ink; ctx.lineWidth = 1.25; ctx.stroke();
+}
+function draw() {
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  const [sx, sy] = toScreen([0, 0]);
+  // The sun as the astronomical mark ☉, inside a faint halo ring; zoomed in it fades so the moon column reads
+  ctx.globalAlpha = 1 - 0.85 * focusAmt;
+  ring(sx, sy, 1.6 * scale, col['ink-3']);
+  ctx.beginPath(); ctx.arc(sx, sy, 1.1 * scale, 0, 7);
+  ctx.fillStyle = col['paper-2']; ctx.fill();
+  ctx.strokeStyle = col.ink; ctx.lineWidth = 1.25; ctx.stroke();
+  ctx.beginPath(); ctx.arc(sx, sy, 0.22 * scale, 0, 7);
+  ctx.fillStyle = col.ink; ctx.fill();
+  ctx.globalAlpha = 1;
+  for (const p of planets) ring(sx, sy, p.r * scale, col['ink-3']);
+  for (const p of planets) {
+    const [px, py] = toScreen(p.pos);
+    // Dashed moon rings; diving into a moon they are off-screen anyway
+    if (scale < 3000) {
+      ctx.globalAlpha = 0.7; ctx.setLineDash([2, 3]);
+      for (const m of p.moons) ring(px, py, m.r * scale, col['ink-3']);
+      ctx.globalAlpha = 1; ctx.setLineDash([]);
+    }
+    for (const m of p.moons) drawBody([p.pos[0] + m.pos[0], p.pos[1] + m.pos[1]], m.size, m === hovered);
+    drawBody(p.pos, p.size, p === hovered || p === focus);
+  }
+  for (const k of rocks) {
+    ctx.beginPath();
+    for (const q of k.trail) ctx.lineTo(...toScreen(q));
+    ctx.globalAlpha = 0.5; ctx.strokeStyle = col['ink-2']; ctx.lineWidth = 1; ctx.stroke(); ctx.globalAlpha = 1;
+    ctx.beginPath(); ctx.arc(...toScreen(k.p), 0.16 * scale, 0, 7);
+    ctx.fillStyle = col.ink; ctx.fill();
+  }
+  // Leader line for the hovered moon: moon → short elbow → its label in the column
+  if (hovered && shown?.moons.includes(hovered) && !landed) {
+    const [x, y] = hovered.screen, r = hovered.label.getBoundingClientRect();
+    const ly = r.top + r.height / 2, lx = r.left - 6;
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(lx - 18, ly); ctx.lineTo(lx, ly);
+    ctx.globalAlpha = focusAmt; ctx.strokeStyle = col.accent; ctx.lineWidth = 1; ctx.stroke(); ctx.globalAlpha = 1;
+  }
+}
 
 function frame(now) {
   const dt = Math.min((now - last) / 1000, 0.05);
@@ -358,33 +404,26 @@ function frame(now) {
     }
   }
   updateCamera(ease);
-  chart.classList.toggle('deep', scale > 3000);  // diving into a moon: its dashed rings are off-screen anyway
 
-  world.setAttribute('transform', `translate(${cam.anchor[0]} ${cam.anchor[1]}) scale(${scale}) translate(${-cam.center[0]} ${-cam.center[1]})`);
-  world.style.setProperty('--px', `${1 / scale}px`);
   for (const p of planets) {
-    p.g.setAttribute('transform', `translate(${p.pos[0]} ${p.pos[1]})`);
-    p.g.lastChild.setAttribute('transform', `rotate(${deg(p.pos)})`);
-    for (const m of p.moons) m.g.setAttribute('transform', `translate(${m.pos[0]} ${m.pos[1]}) rotate(${deg([p.pos[0] + m.pos[0], p.pos[1] + m.pos[1]])})`);
     const [x, y] = toScreen(p.pos);
     p.screen = [x, y, p.size * scale];
-    p.label.style.transform = `translate(${x}px, ${y + p.size * scale + 6}px)`;
+    // In the overview, keep labels clear of the screen edges
+    p.w ||= p.label.offsetWidth;
+    const lx = Math.min(Math.max(x, 16 + p.w / 2), W - 16 - p.w / 2);
+    p.label.style.transform = `translate(${x + (lx - x) * (1 - focusAmt)}px, ${y + p.size * scale + 6}px)`;
   }
-  // Leader lines: moon → short elbow → its label in the column
   stepRocks(dt * timeScale);
   // Stars pan with the camera, slower than the chart, for depth
   for (const l of starLayers) {
     const off = k => (((cam.anchor[k] - cam.center[k] * scale) * l.speed % TILE) + TILE) % TILE - TILE;
     l.g.setAttribute('transform', `translate(${off(0)} ${off(1)})`);
   }
-  leaders.style.opacity = landed ? 0 : focusAmt;
   if (shown) for (const m of shown.moons) {
     const [x, y] = toScreen([shown.pos[0] + m.pos[0], shown.pos[1] + m.pos[1]]);
     m.screen = [x, y, m.size * scale];
-    const r = m.label.getBoundingClientRect();
-    const ly = r.top + r.height / 2, lx = r.left - 6;
-    m.line.setAttribute('points', `${x},${y} ${lx - 18},${ly} ${lx},${ly}`);
   }
+  draw();
 
   if (belt) {
     gl.viewport(0, 0, canvas.width, canvas.height);

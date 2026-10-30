@@ -71,27 +71,7 @@ canvas, #chart { position: fixed; inset: 0; width: 100%; height: 100%; }
 #chart { cursor: default; }
 #chart.pointing { cursor: pointer; }
 
-/* The chart: hairlines that stay 1px at any zoom */
-/* --px is one screen pixel in world units, set by main.js each frame (cheaper than vector-effect: non-scaling-stroke) */
-#chart .orbit { fill: none; stroke: var(--ink-3); stroke-width: var(--px); }
-#chart .moon-orbit { fill: none; stroke: var(--ink-3); stroke-width: var(--px); stroke-dasharray: calc(2 * var(--px)) calc(3 * var(--px)); opacity: .7; }
-#chart .sun-halo { fill: none; stroke: var(--ink-3); stroke-width: var(--px); }
-#chart .sun-disc { fill: var(--paper-2); stroke: var(--ink); stroke-width: calc(1.25 * var(--px)); }
-#chart .sun-core { fill: var(--ink); }
-#chart :is(.sun-halo, .sun-disc, .sun-core) { transition: opacity .6s; }
-/* Zoomed in, the sun can sit behind the moon column: fade it so the column reads */
-.chart.focusing #chart :is(.sun-halo, .sun-disc, .sun-core) { opacity: .15; }
-#chart .body .disc { fill: var(--disc); }
-#chart .body .rim { fill: none; stroke: var(--ink); stroke-width: calc(1.25 * var(--px)); transition: stroke .3s; }
-#chart .body .night { fill: url(#night); }
-#chart #night stop { stop-color: var(--shade); }
-#chart #night stop + stop { stop-opacity: var(--night-max); }
-#chart .hover > .body .rim, #chart .focused > .body .rim { stroke: var(--accent); }
-/* One leader line at a time: drawn for the hovered moon, on the chart or in the column */
-#chart .rocks polyline { fill: none; stroke: var(--ink-2); stroke-width: var(--px); opacity: .5; }
-#chart .rocks circle { fill: var(--ink); }
-#chart .leaders polyline { fill: none; stroke: var(--accent); stroke-width: 1; opacity: 0; transition: opacity .2s; }
-#chart .leaders polyline.hot { opacity: 1; }
+.boot * { transition: none !important; }
 
 /* Labels: main.js positions the planet labels each frame */
 .chart main { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
@@ -153,7 +133,15 @@ canvas, #chart { position: fixed; inset: 0; width: 100%; height: 100%; }
 
 
 @media (max-width: 640px) {
-  .chart .moons { top: auto; bottom: 48px; left: 16px; right: 16px; translate: none; gap: 10px; }
+  .chart .moons { top: auto; bottom: 32px; left: 16px; right: 16px; translate: none; gap: 2px; }
+  .chart .moons a { padding: 8px 14px; }
+  .chart .moons span { font-size: 19px; }
+  /* Masthead: name, tagline, then the buttons on their own row; zoomed in, only the name stays */
+  .chart .masthead { display: flex; flex-wrap: wrap; align-items: baseline; }
+  .chart .masthead h1 { display: contents; }
+  .chart .masthead p { order: 1; flex-basis: 100%; }
+  .chart .social { order: 2; margin: 8px 6px 0 0; vertical-align: 0; }
+  .chart.focusing .masthead :is(p, .social) { display: none; }
 }
 
 /* ---------- Reading: articles, as static pages and as surfaces revealed by landing on a moon ---------- */
@@ -191,4 +179,3 @@ body:not(.chart) #surfaces { display: none; }
 .chart.landed .masthead, .chart.landed .focused .moons, .chart.landed #system .planet { opacity: 0; visibility: hidden; }
 .chart .masthead { transition: opacity .4s, visibility .4s; }
 .chart.rest :is(#chart, canvas, .stars) { visibility: hidden; }
-#chart.deep .moon-orbit { display: none; }
