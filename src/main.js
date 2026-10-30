@@ -206,7 +206,7 @@ function setFocus(route) {
     if (on && !s.classList.contains('on')) s.scrollTop = 0;
     s.classList.toggle('on', on);
   }
-  back.textContent = `← ${landed ? p.label.textContent : 'System'}`;
+  back.textContent = `← ${landed ? p.label.textContent : 'Back'}`;
   back.href = landed ? `#${p.id}` : '#';
   measureList();
 }
