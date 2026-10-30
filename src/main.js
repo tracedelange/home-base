@@ -1,7 +1,11 @@
 (() => {
-document.body.classList.add('chart', 'boot');
-// Without this, everything would animate in from its no-JS state on load
-requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.remove('boot')));
+// Skip CSS transitions for the next two frames: on load, so nothing animates in from its no-JS state, and on back/forward
+const freeze = () => {
+  document.body.classList.add('boot');
+  requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.remove('boot')));
+};
+document.body.classList.add('chart');
+freeze();
 
 // Angular speed = K / r^1.5 (Kepler's third law), so outer bodies drift slower
 const K_PLANET = 0.25;
@@ -170,7 +174,7 @@ themeBtn.addEventListener('click', () => {
 
 // ---------- camera: world point `center` is drawn at screen point `anchor`, `scale` px per unit ----------
 const cam = { center: [0, 0], anchor: [innerWidth / 2, innerHeight / 2], logScale: Math.log(4) };
-let focus = null, shown = null, landed = null, hovered = null, focusAmt = 0, t = 0, timeScale = 1, last = performance.now();
+let focus = null, shown = null, landed = null, hovered = null, focusAmt = 0, t = 0, timeScale = 1, last = performance.now(), jump = false;
 let W = 0, H = 0, dpr = 1, scale = 1, overviewScale = 1;
 // Phones stack the moon list under the planet; listTop is the list's top edge, so the planet can sit above it
 const phone = matchMedia('(max-width: 640px)');
@@ -210,12 +214,26 @@ function setFocus(route) {
 for (const s of surfaces) s.addEventListener('transitionend', e => {
   if (e.target === s && e.propertyName === 'opacity' && s.classList.contains('on')) document.body.classList.add('rest');
 });
-addEventListener('hashchange', () => setFocus(location.hash.slice(1)));
+// Back/forward (e.g. the iOS swipe) already has the browser's own slide, so go straight there instead of animating again.
+// Also used on load, so a shared link opens where it points.
+function jumpTo(route) {
+  freeze();
+  jump = true;
+  setFocus(route);
+  if (landed) document.body.classList.add('rest');  // no fade, so no transitionend to set it
+}
+// A hash change soon after a click or key press is the visitor moving around the chart; any other is back/forward
+let acted = 0;
+for (const ev of ['click', 'keydown']) addEventListener(ev, () => acted = performance.now(), true);
+addEventListener('hashchange', () => {
+  const route = location.hash.slice(1);
+  performance.now() - acted < 500 ? setFocus(route) : jumpTo(route);
+});
 addEventListener('keydown', e => { if (e.key === 'Escape' && focus) location.hash = landed ? focus.id : ''; });
 // Moon links point at static pages for no-JS visitors; here they land on the moon instead
 for (const a of document.querySelectorAll('a[data-route]'))
   a.addEventListener('click', e => { e.preventDefault(); location.hash = a.dataset.route; });
-setFocus(location.hash.slice(1));
+jumpTo(location.hash.slice(1));
 
 // Nearest body under the pointer: the focused planet's moons first, then planets
 function pick(x, y) {
@@ -359,9 +377,11 @@ function draw() {
   for (const p of planets) ring(sx, sy, p.r * scale, col['ink-3']);
   for (const p of planets) {
     const [px, py] = toScreen(p.pos);
-    // Dashed moon rings; diving into a moon they are off-screen anyway
-    if (scale < 3000) {
-      ctx.globalAlpha = 0.7; ctx.setLineDash([2, 3]);
+    // Dashed moon rings, faded out when they sit too close together to read (the overview on a phone);
+    // diving into a moon they are off-screen anyway
+    const rings = 0.7 * Math.min(1, Math.max(0, (0.34 * scale - 2.5) / 2.5));
+    if (rings && scale < 3000) {
+      ctx.globalAlpha = rings; ctx.setLineDash([2, 3]);
       for (const m of p.moons) ring(px, py, m.r * scale, col['ink-3']);
       ctx.globalAlpha = 1; ctx.setLineDash([]);
     }
@@ -389,7 +409,8 @@ function frame(now) {
   last = now;
   if (document.body.classList.contains('rest')) return requestAnimationFrame(frame);
   resize();
-  const ease = snap ? 1 : 1 - Math.exp(-dt * 2.5);
+  const ease = snap || jump ? 1 : 1 - Math.exp(-dt * 2.5);
+  jump = false;
   // Time slows while zoomed in so the chart holds still while you read
   timeScale += ((landed ? 0 : focus ? 0.1 : 1) * (reduceMotion ? 0.2 : 1) - timeScale) * ease;
   focusAmt += ((focus ? 1 : 0) - focusAmt) * ease;
